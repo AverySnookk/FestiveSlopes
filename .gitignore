@@ -1,0 +1,5 @@
+# local runtime files
+mods/FestiveSlopes/*.log
+mods/FestiveSlopes/commands.txt
+mods/FestiveSlopes/status.txt
+mods/FestiveSlopes/Cache/resort_*.txt

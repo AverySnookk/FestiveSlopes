@@ -1,0 +1,23 @@
+FESTIVE SLOPES 0.1.0 - INSTALL
+AverySnookk Studios
+
+Needs: Ski-E-O! Ski Resort Tycoon (Steam, tested on build CL8231) with UE4SS installed
+(the same UE4SS setup other Ski-E-O Lua mods use: the game folder has a "mods" folder next to
+SkiResortSimulator). No other mod is needed.
+
+1. Close the game.
+2. Open the game folder: in Steam, right-click the game > Manage > Browse local files.
+3. Copy the "mods\FestiveSlopes" folder from this zip into the game's "mods" folder, so you get
+   <game>\mods\FestiveSlopes\enabled.txt
+   <game>\mods\FestiveSlopes\Scripts\main.lua  (and the other .lua files)
+   <game>\mods\FestiveSlopes\Config\FestiveSlopes.ini
+4. Start the game and load a resort. Decorations appear about 15 seconds after the resort is up.
+
+Settings: edit mods\FestiveSlopes\Config\FestiveSlopes.ini (density, how many trees/houses,
+lights, seed...). Each setting is explained in the file.
+
+Turn it off: set "enabled = false" in the .ini, or delete enabled.txt, or delete the folder.
+The mod saves nothing into your resort, so removing it leaves your saves exactly as they were.
+
+Keys (in a resort): Ctrl+Alt+F show/hide, Ctrl+Alt+G regenerate, Ctrl+Alt+J write status to the log.
+Log: mods\FestiveSlopes\FestiveSlopes.log
