@@ -1,4 +1,19 @@
-# Festive Slopes 0.1.0: test results
+# Festive Slopes: test results
+
+## 0.1.1 (2026-11-22)
+
+**User report on 0.1.0:** "doesn't do anything". The log showed the mod working: the layout was planned 41 s after the resort loaded, and the player left at 53 s, before the first group was built.
+
+Lab timing on Palisades Tahoe, moderate density, measured from the resort being up:
+
+| Visit | First decorations (near the camera) | Whole resort | Before (0.1.0) |
+|---|---|---|---|
+| First visit (no cache) | 14 s | 26 s | about 55–60 s |
+| Later visit (cached) | 6 s | 16 s | about 30 s |
+
+The average tick while building is 5.4 ms, with a worst tick of 85 ms during the load-in. There were no errors and no crash. Everything else is unchanged from 0.1.0, whose results follow.
+
+## 0.1.0
 
 **Setup**
 - Game: Ski-E-O! Ski Resort Tycoon build CL8231 (UE 5.8), UE4SS 4.0.0, Windows 11, windowed 1600×900.

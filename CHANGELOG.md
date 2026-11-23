@@ -2,6 +2,14 @@
 
 All notable changes to Festive Slopes (AverySnookk Studios).
 
+## 0.1.1 (2026-11-22)
+
+### Fixed
+- **Decorations took about a minute to appear** on the first visit to a resort, so it looked as if the mod did nothing. Now the trees near the camera light up within about 15 s (about 6 s on later visits, from the cache), and the whole resort is done in about 25 s.
+  - The mod starts 5 s after the resort loads instead of 15 s.
+  - The first build gets twice as much time per frame. Later background updates still use the small budget.
+  - Decorations nearest the camera are built first.
+
 ## 0.1.0 (2026-11-21), first release
 
 Tested on Ski-E-O! Ski Resort Tycoon build CL8231 with UE4SS 4.0.0.

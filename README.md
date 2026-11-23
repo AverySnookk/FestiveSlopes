@@ -1,4 +1,4 @@
-# Festive Slopes 0.1.0
+# Festive Slopes 0.1.1
 
 *AverySnookk Studios*. A standalone, cosmetic Christmas mod for **Ski-E-O! Ski Resort Tycoon** (UE4SS Lua).
 
@@ -37,7 +37,7 @@ Get the newest **`FestiveSlopes-….zip`** from the [Releases page](https://gith
 
 ## Install
 
-See [INSTALL.txt](INSTALL.txt). In short, copy `mods\FestiveSlopes` into the game's `mods` folder (UE4SS installed), start the game and load a resort. Decorations appear about 15 seconds after the resort is up.
+See [INSTALL.txt](INSTALL.txt). In short, copy `mods\FestiveSlopes` into the game's `mods` folder (UE4SS installed), start the game and load a resort. Decorations start appearing near the camera within about 15 seconds the first time you open a resort, and within about 6 seconds after that (the layout is cached).
 
 ## Settings (`mods\FestiveSlopes\Config\FestiveSlopes.ini`)
 
@@ -88,7 +88,7 @@ Tested in game on build CL8231 with UE4SS 4.0.0, on the Palisades Tahoe ("Boha")
 **Known limitations**
 - Gingerbread houses are rare on heavily forested resorts, because they need open, gentle ground beside a trail.
 - On larger resorts, festive and wonderland both reach the `max_decorations` cap (600) and look the same. Raise the cap for more.
-- Building the decorations takes 30–110 s after a resort loads or the density changes. Frame times rise slightly during that time.
+- Decorating a whole resort takes 15–30 s after it loads (longer at festive and wonderland). The trees nearest the camera are done first. Frame times rise slightly during that time.
 - Development crashed the game seven times (all fixed or avoided, see TEST_RESULTS.md). If the game crashes with the mod installed, check `FestiveSlopes.log` and remove the mod's `enabled.txt`.
 - Walkways painted by players that the game does not save as walkway runs are not avoided by houses.
 - No custom imported 3D assets: all decoration geometry is generated at runtime and uses the game's own materials.

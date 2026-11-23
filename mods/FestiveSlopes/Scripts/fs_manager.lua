@@ -9,8 +9,13 @@ local Rng = require("fs_rng")
 local MG = { state = "waiting", job = nil, placements = {}, info = {} }
 local W, L, S, P, SP, Decor, Config, Trees, ctx
 
-local SETTLE = 15            -- s after the resort is up before the first scan
-local BUDGET = 0.004         -- s of work per tick for jobs
+-- First impression matters (user report 2026-11-22: with 15 s + 4 ms/tick nothing showed for about a minute after a
+-- first load, and the player left the resort at 53 s, before the first light was built). The first build of a
+-- resort and command-started jobs now get twice the budget, start sooner and build the groups nearest the camera
+-- first. Background updates (layout changed) keep the small budget.
+local SETTLE = 5             -- s after the resort is up before the first scan (the trail subsystem must answer too)
+local BUDGET = 0.004         -- s of work per tick for background jobs
+local BUDGET_FAST = 0.008    -- s of work per tick for the first build after a load and for commands
 
 function MG.init(c)
     ctx = c
@@ -138,7 +143,19 @@ function steps.prebuild(j)
     end
     j.keys = {}
     for k in pairs(j.groups) do j.keys[#j.keys + 1] = k end
-    table.sort(j.keys)
+    -- nearest to what the player is looking at first (name order when the camera is unknown: stable)
+    local f
+    pcall(function() f = ctx.Commands.cameraFocus() end)
+    local dist = {}
+    for _, k in ipairs(j.keys) do
+        local sx, sy, n = 0, 0, 0
+        for _, o in ipairs(j.groups[k]) do sx, sy, n = sx + o.x, sy + o.y, n + 1 end
+        dist[k] = (f and n > 0) and ((sx / n - f.x) ^ 2 + (sy / n - f.y) ^ 2) or 0
+    end
+    table.sort(j.keys, function(a, b)
+        if dist[a] ~= dist[b] then return dist[a] < dist[b] end
+        return a < b
+    end)
     j.keyI, j.built, j.kept, j.failed = 1, 0, 0, 0
     MG.placements = j.list
     return "build"
@@ -196,7 +213,7 @@ end
 
 local function runJob()
     local j = MG.job
-    local deadline = os.clock() + BUDGET
+    local deadline = os.clock() + ((j and j.opts.background) and BUDGET or BUDGET_FAST)
     local guard = 0
     while j and j.step ~= "done" and guard < 20 do
         guard = guard + 1
@@ -245,7 +262,7 @@ function MG.tick()
         L.debug("manager", "layout check %.1f ms (fingerprint %d, was %s)", (os.clock() - t0) * 1000, fp, tostring(MG.lastFp))
         if MG.lastFp and fp ~= MG.lastFp then
             L.info("manager", "resort layout changed: updating decorations")
-            MG.start({ reason = "layout changed" })
+            MG.start({ reason = "layout changed", background = true })
         end
     end
 end
