@@ -1,4 +1,4 @@
-FESTIVE SLOPES 0.1.1 - INSTALL
+FESTIVE SLOPES 0.1.2 - INSTALL
 AverySnookk Studios
 
 Needs: Ski-E-O! Ski Resort Tycoon (Steam, tested on build CL8231) with UE4SS installed
@@ -11,8 +11,8 @@ SkiResortSimulator). No other mod is needed.
    <game>\mods\FestiveSlopes\enabled.txt
    <game>\mods\FestiveSlopes\Scripts\main.lua  (and the other .lua files)
    <game>\mods\FestiveSlopes\Config\FestiveSlopes.ini
-4. Start the game and load a resort. The trees near the camera light up within about 15 seconds
-   (about 6 seconds on later visits), and the rest of the resort follows within half a minute.
+4. Start the game and load a resort. The trees near the camera light up within about 20 seconds
+   (about 5 seconds on later visits), and the rest of the resort follows within a minute or two.
 
 Settings: edit mods\FestiveSlopes\Config\FestiveSlopes.ini (density, how many trees/houses,
 lights, seed...). Each setting is explained in the file.

@@ -20,7 +20,7 @@ C.schema = {
     density                  = { "moderate", enum = DENSITY_ALIASES },
     tree_frequency           = { 1.0, 0, 3 },
     house_frequency          = { 1.0, 0, 3 },
-    max_decorations          = { 600, 0, 3000 },
+    max_decorations          = { 1500, 0, 4000 },
     holiday_lighting         = { true },
     light_brightness         = { 1.0, 0.2, 4 },
     -- Placement

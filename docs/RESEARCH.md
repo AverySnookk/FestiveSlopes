@@ -43,6 +43,21 @@ Design decision, from user feedback on 2026-11-21: the mod adds **no** trees and
   - Ties are broken by the biome roster: Pine and Sclerophyll have identical size layouts, so leaving out either one matched the heights equally well.
   - Result on Boha: 52 of 60 measured trees agree, using the table without Sclerophyll.
 - **Mesh size.** `UStaticMesh:GetBounds()` gives the height and widest radius of each tree mesh. Lights sit at 0.84 × the cone through those bounds, which put them on the branch tips in screenshots.
+- **Tree shapes (0.1.2).** The light spiral assumes a cone. The whitebark pine's own meshes (`sm_tree_whitebarkpine_10m`, `_15m`) have a spreading, gnarled crown, and lights floated around them (user screenshots, 2026-11-22). Its 20 m size uses the conical `SM_Pine_20m` mesh. The mod skips trees by mesh path (`T.SKIP_MESH`), not by species. Dressed trees on Boha at moderate: spruce 665, fir 336, pine 84, whitebark pine on the pine mesh 16.
+- **Forest growth.** `ObstacleDataManager.Obstacles` grows by itself as the game's forest spreads. 0.1.1 used its count in the resort fingerprint and re-planned every 30 s for nothing. Only `ClearedZones` (trees the player cleared) is used now.
+
+## Snow depth (verified, 0.1.2)
+
+User report: gingerbread houses were half buried. The game's snow sits up to a few metres on top of the terrain, and none of the height functions include it. At the same points, `TerrainUtils:GetHeightAtLocation`, `SnapToTerrain`, `SnapToBaseTerrain` and `SkiResortFunctionLibrary:GetGroundHeightAtLocation` all returned the same bare-ground value.
+
+- **Where the snow is.** `SnowSimulationSubsystem` holds render targets only: `CoarseMipRT`, `CoarseMipReadbackFp16RT`, `PackedDensityRT`, `SnowEnvironmentRT`, `BuildingCanopyMaskRT` and others. Its only functions are `HandleMonthChanged` and `GetGridResolution`. `FSnowCellData` is not stored in any reflected property.
+- **Reading it.** `KismetRenderingLibrary:ReadRenderTargetRawUV(world, CoarseMipReadbackFp16RT, u, v, false)` returns the cell's raw values.
+  - The grid is 1162 × 1162 cells (`GetGridResolution`) of 800 cm (`DA_SnowTileSettings.SnowCoarseCellSizeCm`), which is 9,296 m. That matches the `Landscape` actor's bounds (centre 0, 0; half extent 4,648 m). U runs along X and V along Y.
+  - R and G are depths in cm. Beside the forest near the houses: R 198–254, G 36–49. Under the game's own buildings, which clear their snow: R 8–27. With U and V swapped, the building readings were not low, which confirmed the axis order.
+  - The mod uses R + G as the depth. In screenshots, houses lifted by that amount (less 15 cm) sit on the snow surface with the door fully visible.
+- **Cost.** About 1 ms per read, because it waits for the render thread. The mod reads each 8 m cell once per build, spread over ticks within the frame budget. While idle, it re-reads one decoration group's cell every 2 s.
+- **Block reads do not work.** Through UE4SS, `ReadRenderTargetRawUVArea` returned a single value, so it is not used.
+- **Still open.** The coarse 8 m grid can differ from the rendered snow surface on slopes and at trail edges.
 
 **Calls that crashed the game in the lab** (UE4SS crash dumps at 21:45, 21:49, 21:53 and 21:56). Never use these:
 

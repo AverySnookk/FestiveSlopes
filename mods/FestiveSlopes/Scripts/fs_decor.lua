@@ -77,13 +77,14 @@ local function canopyR(t, z)
     return t.R * math.max(0, (t.H - z) / math.max(1, t.H - zb))
 end
 
--- ground(lx, ly) -> local z of the ground (gifts); giftYaw: direction (deg, local) of the open side (the trail)
-function D.drawLights(b, t, ground, giftYaw, Rng)
+-- ground(lx, ly) -> local z of the snow surface (gifts); giftYaw: direction (deg, local) of the open side (the
+-- trail); snowZ: depth of the snow at the trunk (cm): the lights start above it, not under it
+function D.drawLights(b, t, ground, giftYaw, Rng, snowZ)
     local rng = Rng.new(t.seed)
     local H, R = t.H, t.R
     local bulbR = math.max(10, math.min(18, H * 0.011))
-    local zLo = H * math.max(t.f0 + 0.04, 0.14)
     local zHi = H * 0.9
+    local zLo = math.min(math.max(H * math.max(t.f0 + 0.04, 0.14), (snowZ or 0) + 40), H * 0.55)
     if t.lights ~= "none" then
         -- one string spiralling up the canopy, a bulb every `gap` cm along it
         local turns = 2.6 + H / 900
@@ -193,14 +194,23 @@ function D.houseCore(h)
     return (math.max(h.w, h.l) / 2 + 40) * h.scale
 end
 
--- ground(lx, ly) -> local z of the terrain (design space, before scale) or nil
-function D.drawHouse(b, h, ground, Rng)
+-- ground(lx, ly) -> local z of the snow surface (design space, before scale) or nil
+-- footZ: local z of the bare ground under the house (below 0 when the house stands on deep snow)
+function D.drawHouse(b, h, ground, Rng, footZ)
     local rng = Rng.new(h.seed)
     local W, Lh, WH = h.w / 2, h.l / 2, h.wallH
     local p = rad(h.pitch)
     local ridgeZ = WH + W * math.tan(p)
     local function gz(x, y) return (ground and ground(x, y)) or 0 end
     local walls = h.walls
+    -- raised onto the snow: a frosted gingerbread base down to the ground, seen only where the snow is thinner
+    -- (a thaw since the house was built, or a slope)
+    if footZ and footZ < -20 then
+        local bot = footZ - 40
+        local top = 14
+        b:obox(walls, { 0, 0, (top + bot) / 2 }, { W + 22, 0, 0 }, { 0, Lh + 22, 0 }, { 0, 0, (top - bot) / 2 })
+        b:obox("icing", { 0, 0, top + 4 }, { W + 30, 0, 0 }, { 0, Lh + 30, 0 }, { 0, 0, 6 })
+    end
     -- body (goes into the ground so slopes don't show a gap)
     b:obox(walls, { 0, 0, (WH - 120) / 2 }, { W, 0, 0 }, { 0, Lh, 0 }, { 0, 0, (WH + 120) / 2 })
     -- gables (triangles at +-Y)

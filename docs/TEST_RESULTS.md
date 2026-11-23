@@ -1,5 +1,30 @@
 # Festive Slopes: test results
 
+## 0.1.2 (2026-11-22)
+
+**User report on 0.1.1, with screenshots:** too few dressed trees; lights floating around some trees; gingerbread houses half buried in snow. The user's log also showed the whole resort being re-planned every 30 s for nothing.
+
+Lab: Palisades Tahoe, the same save as before, other mods disabled. The saves folder was backed up and restored as before.
+
+| Test | Result |
+|---|---|
+| Which trees looked wrong | The game's whitebark pine meshes (10 m and 15 m), which have spreading, gnarled crowns. Screenshot of a dressed one confirmed it. They are no longer dressed. Census at moderate: spruce 665, fir 336, pine 84, whitebark pine on the conical 20 m pine mesh 16, gnarled whitebark pine 0 |
+| Snow depth source | Read from the game's snow grid (see RESEARCH.md). 7 house spots: 191–302 cm of snow. Under the game's buildings: 8–27 cm |
+| Houses on snow | Screenshots of 4 houses: walls, door, windows, canes and fence fully above the snow (`docs/screenshots/gingerbread-house-on-snow.png`). Before: half buried at the same spots |
+| Snow change | A house group's recorded snow depth was faked 100 cm lower. The watch noticed it ("snow 301 cm, was 202 when built") and rebuilt that one group: 1 built, 58 kept, 2.1 s |
+| Moderate, first visit | 1,123 trees, 6 houses, 123 groups. First decorations 22 s after load, whole resort 65 s. 0 errors |
+| Moderate, later visit (cache) | First decorations 5 s after load, whole resort 53 s. 124 tagged actors after the menu round trip (123 groups and the material holder), so no leftovers |
+| Festive | 1,494 trees, 6 houses (capped at 1,500), 153 groups, 92 s. 0 errors |
+| Wonderland | 1,493 trees, 7 houses (capped), 154 groups, 118–153 s. 0 errors. The re-planned cache file was byte-identical to the previous one |
+| Performance while building | Average 10–12 ms per tick, worst 52–81 ms. Before the fixes below the worst was 221 ms |
+| Performance idle (snow watch running) | 0.29–0.31 ms per tick, worst 14–17 ms |
+| Re-planning | No re-plan during the lab session. The obstacle count did not change in the lab, so forest growth itself was not reproduced. The fix comes from the user's 0.1.1 log: 3 re-plans of 26 s each, all ending "0 built, 53 kept", with no layout change |
+
+**Fixed during testing**
+- With twice as many trail stretches, every stretch could also roll a house. Each house try searches its whole trail edge, so planning took 26 s. The house chance is now scaled so the number of houses per metre of trail stays as in 0.1.1. Planning dropped to 16 s.
+- Groups of up to 55 decorations (97k vertices) were built in one tick (up to 300 ms per group). Groups are now split at 12 decorations.
+- Planning laid out every house's candidate list in one tick (196 ms at wonderland). These lists are now made when each house is tried (15 ms), with an identical result.
+
 ## 0.1.1 (2026-11-22)
 
 **User report on 0.1.0:** "doesn't do anything". The log showed the mod working: the layout was planned 41 s after the resort loaded, and the player left at 53 s, before the first group was built.

@@ -1,7 +1,7 @@
 -- Festive Slopes v0.1 for Ski-E-O! Ski Resort Tycoon (UE4SS Lua). AverySnookk Studios.
 -- Decorated Christmas trees and gingerbread houses along the edges of selected ski trails. Standalone: needs no
 -- other mod. Cosmetic only: nothing is registered with the game, nothing is written to the save.
-local VERSION = "0.1.1"
+local VERSION = "0.1.2"
 
 local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local modDir = here:match("^(.*)/Scripts$") or here

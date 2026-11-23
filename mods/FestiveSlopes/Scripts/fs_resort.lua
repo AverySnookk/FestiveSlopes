@@ -14,7 +14,10 @@ local Rng = require("fs_rng")
 local S = { stats = { height = 0, slope = 0, corridor = 0, trees = 0 } }
 local W, L
 
-function S.init(world, log) W, L = world, log end
+function S.init(world, log)
+    W, L = world, log
+    W.onMapChange(function() S.snowReset() end)
+end
 
 local function ok(o) return W.ok(o) end
 
@@ -65,6 +68,81 @@ function S.slope(x, y)
     if a and a == a then return a end
     return nil
 end
+
+-- ------------------------------------------------------------------ snow depth
+-- The terrain height functions answer the bare ground (lab 2026-11-22: GetHeightAtLocation, SnapToTerrain,
+-- SnapToBaseTerrain and GetGroundHeightAtLocation all gave the same value), but the game's snow is up to a few
+-- metres deep on top of it and buried the gingerbread houses (user report 2026-11-22). The snow simulation keeps a
+-- CPU-readable copy of its coarse grid: SnowSimulationSubsystem.CoarseMipReadbackFp16RT, GetGridResolution() cells
+-- (1162 on Palisades Tahoe) of SnowCoarseCellSizeCm (800) each, centred on the landscape. Lab readings: R and G
+-- are snow depths in cm (about 200 + 35 at the houses beside the forest, near 0 under the game's own buildings,
+-- which clear the snow), so the surface is the ground + R + G. ReadRenderTargetRawUV costs about 1 ms (it waits
+-- for the render thread), so each 8 m cell is read once and remembered; the block read
+-- (ReadRenderTargetRawUVArea) came back with a single value through UE4SS and is not used.
+local snow = { cells = {}, state = nil }
+S.SNOW_MAX = 600             -- cm; a larger reading is treated as noise
+
+local function snowSetup()
+    if snow.state or (snow.state == false and os.clock() < snow.retry) then return snow.state end
+    snow.state, snow.retry = false, os.clock() + 30
+    local okS = pcall(function()
+        local ss = W.live("SnowSimulationSubsystem")
+        if not ok(ss) then return end
+        local rt = ss.CoarseMipReadbackFp16RT
+        local krl = StaticFindObject("/Script/Engine.Default__KismetRenderingLibrary")
+        local res = tonumber(ss:GetGridResolution())
+        local cell = tonumber(ss.CachedSnowTileSettings.SnowCoarseCellSizeCm)
+        if not (ok(rt) and ok(krl) and res and res > 0 and cell and cell > 0) then return end
+        local cx, cy = 0, 0
+        for _, a in ipairs(FindAllOf("Landscape") or {}) do
+            if ok(a) then
+                local o, e = {}, {}
+                pcall(function() a:GetActorBounds(false, o, e, false) end)
+                if tonumber(o.X) then cx, cy = o.X, o.Y break end
+            end
+        end
+        snow.rt, snow.krl, snow.res, snow.cell = rt, krl, res, cell
+        snow.x0, snow.y0 = cx - res * cell / 2, cy - res * cell / 2
+        snow.state = true
+    end)
+    if snow.state then
+        L.info("snow", "snow depth readable: %d x %d cells of %.0f cm from (%.0f, %.0f)", snow.res, snow.res, snow.cell, snow.x0, snow.y0)
+    elseif not snow.warned then
+        snow.warned = true
+        L.warn("snow", "snow depth not readable%s: decorations stand on the bare ground", okS and "" or " (error)")
+    end
+    return snow.state
+end
+
+local function snowKey(x, y)
+    local ix, iy = math.floor((x - snow.x0) / snow.cell), math.floor((y - snow.y0) / snow.cell)
+    if ix < 0 or iy < 0 or ix >= snow.res or iy >= snow.res then return nil end
+    return iy * snow.res + ix, ix, iy
+end
+
+-- Snow depth (cm) at (x, y), or the remembered value; 0 when unknown. read=false: only what is remembered (nil if
+-- not); read="fresh": ask the game even if remembered.
+function S.snowDepth(x, y, read)
+    if not snowSetup() then return 0 end
+    local k, ix, iy = snowKey(x, y)
+    if not k then return 0 end
+    local d = snow.cells[k]
+    if read == false or (d and read ~= "fresh") then return d end
+    d = 0
+    pcall(function()
+        local c = snow.krl:ReadRenderTargetRawUV(W.world(), snow.rt, (ix + 0.5) / snow.res, (iy + 0.5) / snow.res, false)
+        local r, g = tonumber(c.R) or 0, tonumber(c.G) or 0
+        d = math.max(0, r) + math.max(0, g)
+        if d ~= d or d > S.SNOW_MAX then d = 0 end
+    end)
+    S.stats.snow = (S.stats.snow or 0) + 1
+    snow.cells[k] = d
+    return d
+end
+
+-- Forget remembered depths (snow falls and melts): the next reads ask the game again.
+function S.snowForget() snow.cells = {} end
+function S.snowReset() snow.cells, snow.state, snow.warned = {}, nil, nil end
 
 -- Number of natural trees/rocks (obstacles) within radius.
 function S.treesNear(x, y, z, radius)

@@ -102,8 +102,22 @@ function SP.meshDims(path)
 end
 
 -- ------------------------------------------------------------------ geometry for one group
--- Returns builder, origin, number of decorations whose ground moved since they were placed
+-- Returns builder, origin, number of decorations whose ground moved since they were placed, snow watch point
+-- Reads the snow depth under a group's decorations ahead of building it, a few per tick (each read waits ~1 ms for
+-- the render thread). Returns true when all are known.
+function SP.snowPrefetch(list, deadline)
+    for _, o in ipairs(list) do
+        if S.snowDepth(o.x, o.y, false) == nil then
+            S.snowDepth(o.x, o.y)
+            if os.clock() > deadline then return false end
+        end
+    end
+    return true
+end
+
+local HOUSE_SETTLE = 15     -- cm a house sinks into the snow (the coarse snow grid is 8 m: no visible gap)
 local function buildGroup(list)
+    local watch                 -- where the group's snow is checked later: its house, else its first tree
     local ox, oy, oz = 0, 0, math.huge
     for _, o in ipairs(list) do ox, oy = ox + o.x, oy + o.y oz = math.min(oz, o.z) end
     ox, oy = ox / #list, oy / #list
@@ -115,11 +129,14 @@ local function buildGroup(list)
             -- a tree of the game: lights around it, from its trunk base (the game's own position)
             local t = o.look
             b:place(o.x - ox, o.y - oy, o.z - oz, 0, 1)
+            -- the snow around the trunk: gifts stand on it, the lights start above it
+            local d = S.snowDepth(o.x, o.y)
             local function ground(lx, ly)
                 local hz = S.height(o.x + lx, o.y + ly)
-                return hz and (hz - o.z) or 0
+                return (hz and (hz - o.z) or 0) + d
             end
-            Decor.drawLights(b, t, ground, t.gy, Rng)
+            Decor.drawLights(b, t, ground, t.gy, Rng, d)
+            if not watch then watch = { x = o.x, y = o.y, d = d } end
         elseif o.kind == "house" then
             -- the ground may have been reshaped since the placement was cached: follow it
             local z = S.height(o.x, o.y) or o.z
@@ -135,21 +152,25 @@ local function buildGroup(list)
                 local hz = S.height(o.x + lx * c - ly * s, o.y + lx * s + ly * c)
                 if hz and hz < lo then lo = hz end
             end
-            local baseZ = lo
+            -- ...then lift it onto the snow (user report 2026-11-22: houses half buried). It settles a little into
+            -- the snow; a frosted gingerbread base reaches down to the bare ground for when the snow melts.
+            local d = S.snowDepth(o.x, o.y)
+            local baseZ = lo + math.max(0, d - HOUSE_SETTLE)
             b:place(o.x - ox, o.y - oy, baseZ - oz, o.yaw, sc)
             local function ground(lx, ly)
                 local wx = o.x + sc * (lx * c - ly * s)
                 local wy = o.y + sc * (lx * s + ly * c)
                 local hz = S.height(wx, wy)
-                return hz and (hz - baseZ) / sc or 0
+                return hz and (hz + d - baseZ) / sc or 0
             end
-            Decor.drawHouse(b, h, ground, Rng)
+            Decor.drawHouse(b, h, ground, Rng, (lo - baseZ) / sc)
+            watch = { x = o.x, y = o.y, d = d, house = true }
         elseif o.kind == "marker" then
             b:place(o.x - ox, o.y - oy, (S.height(o.x, o.y) or o.z) - oz, 0, 1)
             Decor.drawMarker(b, o.ok)
         end
     end
-    return b, { ox, oy, oz }, nRe
+    return b, { ox, oy, oz }, nRe, watch
 end
 
 -- ------------------------------------------------------------------ actors
@@ -235,7 +256,7 @@ function SP.beginGroup(key, list)
     destroyGroup(key)
     if #list == 0 then return nil end
     local t0 = os.clock()
-    local b, origin, nRe = buildGroup(list)
+    local b, origin, nRe, watch = buildGroup(list)
     local w = W.world()
     if not w then return nil, "no world" end
     local actor
@@ -246,7 +267,7 @@ function SP.beginGroup(key, list)
     tagActor(actor)
     pcall(function() actor.StaticMeshComponent:SetCollisionEnabled(0) end)
     if SP.hidden then pcall(function() actor:SetActorHiddenInGame(true) end) end
-    SP.groups[key] = { actor = actor, n = #list, sig = SP.listSig(list), building = true }
+    SP.groups[key] = { actor = actor, n = #list, sig = SP.listSig(list), building = true, snow = watch }
     local queue = {}
     local solid, glow = {}, {}
     for _, k in ipairs(b.order) do

@@ -19,6 +19,10 @@ local W, L, S, SP
 -- Evergreens worth decorating, with the share of their height that is bare trunk below the canopy (pines keep
 -- their branches higher). Deciduous species, dead/dying trees and krummholz are left alone.
 T.EVERGREEN = { Spruce = 0.05, Fir = 0.06, Hemlock = 0.06, Pine = 0.3, WhitebarkPine = 0.26 }
+-- Tree meshes with a spreading, gnarled crown instead of a cone: a spiral of lights floats around them (user report
+-- 2026-11-22). Lab: whitebark pine's own 10 m and 15 m meshes (sm_tree_whitebarkpine_*); its 20 m size uses the
+-- conical SM_Pine_20m mesh and is still dressed. Matched against the lower-case mesh path.
+T.SKIP_MESH = { "whitebarkpine" }
 local HEALTHY = 0
 
 function T.init(world, log, resort, spawn)
@@ -56,14 +60,15 @@ function T.top(x, y, z)
     return tonumber(res.OutMaxTopZ)
 end
 
--- Something that changes when trees are cleared or planted (part of the resort fingerprint).
+-- Something that changes when the player clears trees (part of the resort fingerprint). Only the cleared zones: the
+-- number of obstacles also changes as the game's forest grows by itself, which re-planned the whole resort every
+-- 30 s for nothing (user log 2026-11-22: three re-plans of 26 s each, all ending "0 built, 53 kept").
 function T.forestSig()
     local m = om()
-    if not m then return "0:0" end
-    local a, b = 0, 0
-    pcall(function() a = m.Obstacles:GetArrayNum() end)
+    if not m then return "0" end
+    local b = 0
     pcall(function() b = m.ClearedZones:GetArrayNum() end)
-    return a .. ":" .. b
+    return tostring(b)
 end
 
 -- ------------------------------------------------------------------ art table
@@ -172,6 +177,8 @@ function T.info(t)
     if T.mode == "mesh" then
         local e = T.tab[t.art]
         if not e or e.cond ~= HEALTHY or not T.EVERGREEN[e.species] or not e.mesh then return nil end
+        local m = e.mesh:lower()
+        for _, k in ipairs(T.SKIP_MESH) do if m:find(k, 1, true) then return nil end end
         local d = SP.meshDims(e.mesh)
         if not d then return nil end
         return { species = e.species, f0 = T.EVERGREEN[e.species], h = d.h, r = d.r }

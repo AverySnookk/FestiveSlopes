@@ -1,10 +1,10 @@
-# Festive Slopes 0.1.1
+# Festive Slopes 0.1.2
 
 *AverySnookk Studios*. A standalone, cosmetic Christmas mod for **Ski-E-O! Ski Resort Tycoon** (UE4SS Lua).
 
 Festive Slopes dresses the trees your resort already has in Christmas lights, stars and ornaments, and puts gingerbread houses beside some trails. It adds no trees. It picks healthy evergreens from the game's own forest along trail edges and around your buildings, and fits the lights to each tree's real size so they sit on the branches.
 
-![Dressed trees along a trail at night](docs/screenshots/dressed-trees-night.png)
+![Dressed trees along a trail at night](docs/screenshots/trail-edge-night-moderate.png)
 
 ## Features
 
@@ -14,16 +14,18 @@ Festive Slopes dresses the trees your resort already has in Christmas lights, st
 - **Extras:** ornaments, and gift boxes on the open side of the tree.
 
 ### Where trees are dressed
-- Spruce, fir, pine, whitebark pine and hemlock in good health.
-- Deciduous, dead and dying trees and krummholz are left alone.
+- Cone-shaped evergreens in good health: spruce, fir, pine and hemlock.
+- Trees with a spreading, gnarled crown (the game's whitebark pines), deciduous, dead and dying trees and krummholz are left alone.
+- The lowest lights and the gift boxes stay above the snow.
 - Along trail edges (trunks never on a trail), and around lodges, huts and shops.
 
 ### Gingerbread houses
 - Icing trim, a snowy candy roof, gumdrops, candy canes and glowing windows.
 - Placed only on open, gentle ground beside a trail. They keep clear of the forest, buildings, lifts, small props, walkways and the skiable area.
+- They stand on top of the snow, which the game piles up to a few metres deep. When the snow gets deeper or melts, the house is moved to match within a few minutes. A frosted gingerbread base shows if the snow is lower than the house.
 
 ### Density
-Five levels: **off, light, moderate (default), festive and wonderland**. At least one trail always stays natural.
+Five levels: **off, light, moderate (default), festive and wonderland**. At least one trail always stays natural. On Palisades Tahoe, moderate dresses about 1,100 trees, and festive and wonderland reach the 1,500 cap.
 
 ### Behaviour
 - **Stable:** the same resort always gets the same decorations. Placements are cached per resort.
@@ -37,7 +39,7 @@ Get the newest **`FestiveSlopes-….zip`** from the [Releases page](https://gith
 
 ## Install
 
-See [INSTALL.txt](INSTALL.txt). In short, copy `mods\FestiveSlopes` into the game's `mods` folder (UE4SS installed), start the game and load a resort. Decorations start appearing near the camera within about 15 seconds the first time you open a resort, and within about 6 seconds after that (the layout is cached).
+See [INSTALL.txt](INSTALL.txt). In short, copy `mods\FestiveSlopes` into the game's `mods` folder (UE4SS installed), start the game and load a resort. Decorations start appearing near the camera within about 20 seconds the first time you open a resort, and within about 5 seconds after that (the layout is cached).
 
 ## Settings (`mods\FestiveSlopes\Config\FestiveSlopes.ini`)
 
@@ -47,7 +49,7 @@ See [INSTALL.txt](INSTALL.txt). In short, copy `mods\FestiveSlopes` into the gam
 | `density` | moderate | off, light, moderate, festive, wonderland |
 | `tree_frequency` | 1.0 | Multiplier for how many trees get dressed (0–3) |
 | `house_frequency` | 1.0 | Multiplier for gingerbread houses (0–3) |
-| `max_decorations` | 600 | Hard cap for the whole resort |
+| `max_decorations` | 1500 | Hard cap for the whole resort |
 | `holiday_lighting` | true | Glowing lights, stars and windows. `false` keeps ornaments only |
 | `light_brightness` | 1.0 | Glow strength (0.2–4) |
 | `placement_seed` | 0 | 0 follows the resort; any other number gives a different layout |
@@ -78,7 +80,8 @@ Tested in game on build CL8231 with UE4SS 4.0.0, on the Palisades Tahoe ("Boha")
 **Verified in game**
 - Dressed real trees (day, dusk and night) and gingerbread houses render correctly.
 - Placement stays off trails and away from buildings, lifts and props.
-- All five densities. On Palisades Tahoe: light 53 trees, moderate 329 trees and 2 houses, festive and wonderland 593 trees and 7 houses.
+- All five densities. On Palisades Tahoe: moderate 1,123 trees and 6 houses; festive 1,494 trees and 6 houses; wonderland 1,493 trees and 7 houses (both at the 1,500 cap).
+- Houses stand on the game's snow (read from the game's snow simulation) and are rebuilt when the snow depth changes.
 - Cache reuse, identical layout on recompute, density changes, hide/show, clear/enable, and map changes without leftovers.
 
 **Experimental**
@@ -87,8 +90,9 @@ Tested in game on build CL8231 with UE4SS 4.0.0, on the Palisades Tahoe ("Boha")
 
 **Known limitations**
 - Gingerbread houses are rare on heavily forested resorts, because they need open, gentle ground beside a trail.
-- On larger resorts, festive and wonderland both reach the `max_decorations` cap (600) and look the same. Raise the cap for more.
-- Decorating a whole resort takes 15–30 s after it loads (longer at festive and wonderland). The trees nearest the camera are done first. Frame times rise slightly during that time.
+- On larger resorts, festive and wonderland both reach the `max_decorations` cap (1,500) and look much the same. Raise the cap for more.
+- Decorating a whole resort takes about a minute after it loads at moderate (up to 2–2.5 minutes at festive and wonderland on the first visit). The trees nearest the camera are done first. Frame times rise during that time.
+- The snow depth comes from the game's coarse snow grid (8 m cells), so on a slope a house can sit slightly into the snow on one side.
 - Development crashed the game seven times (all fixed or avoided, see TEST_RESULTS.md). If the game crashes with the mod installed, check `FestiveSlopes.log` and remove the mod's `enabled.txt`.
 - Walkways painted by players that the game does not save as walkway runs are not avoided by houses.
 - No custom imported 3D assets: all decoration geometry is generated at runtime and uses the game's own materials.

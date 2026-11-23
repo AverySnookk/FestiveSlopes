@@ -2,6 +2,23 @@
 
 All notable changes to Festive Slopes (AverySnookk Studios).
 
+## 0.1.2 (2026-11-22)
+
+### Changed
+- **Many more dressed trees.** Every density level dresses roughly two to three times as many trees as before. On Palisades Tahoe, moderate went from 329 to about 1,100 trees, and festive and wonderland reach the new cap.
+  - The default `max_decorations` is now 1500 (was 600). If you keep your old settings file, raise it there too.
+  - The number of gingerbread houses per trail is about the same as before.
+
+### Fixed
+- **Gingerbread houses were half buried in snow.** The game piles snow up to a few metres deep on top of the ground, and the houses stood on the bare ground. Houses now stand on top of the snow, read from the game's own snow simulation. Every few minutes the mod checks the snow again and moves any house whose snow got deeper or melted. A frosted gingerbread base shows when the snow is lower than the house.
+- **Gift boxes and the lowest lights were under the snow** on trees. They now stay above it.
+- **Lights floated around some trees.** The game's whitebark pines have a spreading, gnarled crown, and the light spiral (made for cone-shaped trees) did not fit them. They are no longer dressed. Spruce, fir, pine and hemlock are.
+- **The whole resort was re-planned every 30 seconds** on some saves, for nothing, because the game's forest grows by itself. Only trees you clear now count as a resort change.
+
+### Performance
+- Decoration groups are capped at 12 decorations, so the denser levels do not cause long frames. The worst frame while building is about 50–80 ms (as in 0.1.1).
+- First visit to a resort: the first decorations appear after about 20 s (0.1.1: about 15 s, with a third as many trees). Later visits: about 5 s.
+
 ## 0.1.1 (2026-11-22)
 
 ### Fixed

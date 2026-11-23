@@ -17,17 +17,21 @@ function P.init(resort, log, decor, trees) S, L, Decor, Trees = resort, log, dec
 -- share: of eligible trails decorated (one always stays natural); spacing: cm between decorated stretches of a trail
 -- edge; per: game trees dressed per stretch; bld: trees dressed around each building; house: chance of a
 -- gingerbread house per stretch; both: chance both sides of a trail get a stretch; village: chance of two houses.
+-- Lab 2026-11-22 (user: "they should be more dense"): every level roughly doubled; moderate dresses about three times
+-- as many trees as in 0.1.1. hspacing: the stretch spacing the house chance is meant for (0.1.1's spacing), so the
+-- number of houses per metre of trail stays as it was (each house try searches its whole trail edge: with the house
+-- chance per stretch unchanged, planning took 26 s instead of 8 on Palisades Tahoe).
 P.PROFILES = {
-    light      = { share = 0.50, spacing = 7000, per = { 1, 1 }, bld = 1, house = 0.00, both = 0.20, village = 0.0 },
-    moderate   = { share = 0.75, spacing = 4000, per = { 1, 2 }, bld = 2, house = 0.12, both = 0.50, village = 0.0 },
-    festive    = { share = 1.00, spacing = 2600, per = { 2, 3 }, bld = 3, house = 0.20, both = 0.75, village = 0.25 },
-    wonderland = { share = 1.00, spacing = 1600, per = { 2, 4 }, bld = 5, house = 0.28, both = 1.00, village = 0.40, showcase = 2 },
+    light      = { share = 0.60, spacing = 4500, hspacing = 7000, per = { 1, 2 }, bld = 2, house = 0.00, both = 0.40, village = 0.0 },
+    moderate   = { share = 0.90, spacing = 2200, hspacing = 4000, per = { 2, 3 }, bld = 3, house = 0.12, both = 0.80, village = 0.0 },
+    festive    = { share = 1.00, spacing = 1500, hspacing = 2600, per = { 3, 4 }, bld = 5, house = 0.20, both = 1.00, village = 0.25 },
+    wonderland = { share = 1.00, spacing = 1000, hspacing = 1600, per = { 3, 5 }, bld = 7, house = 0.28, both = 1.00, village = 0.40, showcase = 2 },
 }
 
-P.REV = 9                    -- bump when placement results change for the same inputs (invalidates caches)
+P.REV = 10                   -- bump when placement results change for the same inputs (invalidates caches)
 local HOUSE_STEP = 1500        -- spacing of the house-spot grid along a trail edge
 local HOUSE_EDGE = 1300        -- house spots start this far beyond the edge offset (+ depth)
-local PICK_R = 1800            -- radius searched for a game tree to dress around a trail-edge spot
+local PICK_R = 2200            -- radius searched for a game tree to dress around a trail-edge spot
 local CHUNK = 15000          -- cm of trail per mesh actor (smaller groups = smaller engine calls)
 local END_MARGIN = 2500      -- keep the first/last 25 m of a trail free (lift stations, base areas)
 
@@ -216,7 +220,7 @@ function P.plan(ctx)
                     local function group(ds) return string.format("t%d_%d_%d", tr.sig, li, math.floor((sc + ds) / CHUNK)) end
                     -- gingerbread house (faces the trail), maybe a small village of two
                     local plannedHouses = 0
-                    if houseP > 0 and rng:chance(houseP) then
+                    if houseP > 0 and rng:chance(math.min(0.8, houseP * sp / (prof.hspacing or sp))) then
                         local nH = (rng:chance(prof.village or 0)) and 2 or 1
                         for hI = 1, nH do
                             local look = Decor.rollHouse(rng, cfg)
@@ -227,27 +231,32 @@ function P.plan(ctx)
                             -- searched, nearest to the rolled spot first, and the first valid spot wins. Lab 2026-11-21:
                             -- only ~7% of edge spots beside the game's forests are flat and clear of canopies, so a search
                             -- near the rolled spot rarely found one, and an unshared whole-edge search was too slow.
-                            local cands = {}
-                            local gLo = line.closed and 0 or math.ceil(END_MARGIN / HOUSE_STEP)
-                            local gHi = line.closed and (math.floor(len / HOUSE_STEP) - 1) or math.floor((len - END_MARGIN) / HOUSE_STEP)
-                            local g0 = math.floor((sc + ds) / HOUSE_STEP + 0.5)
-                            local grid = {}
-                            for g = gLo, gHi do grid[#grid + 1] = g end
-                            table.sort(grid, function(g1, g2)
-                                local d1, d2 = math.abs(g1 - g0), math.abs(g2 - g0)
-                                if line.closed then d1, d2 = math.min(d1, #grid - d1), math.min(d2, #grid - d2) end
-                                if d1 ~= d2 then return d1 < d2 end
-                                return g1 < g2
-                            end)
-                            for _, g in ipairs(grid) do
-                                local dsG = g * HOUSE_STEP - sc
-                                for di, depth in ipairs({ 200, 900, 1700 }) do
-                                    local x, y, mx, my = edgePoint(dsG, edge + HOUSE_EDGE + depth)
-                                    cands[#cands + 1] = { x = x, y = y, yaw = math.deg(math.atan(-my, -mx)), group = group(dsG),
-                                        key = string.format("%d:%d:%d:%d:%d", tr.sig, li, side, g, di) }
+                            -- (the candidate list is made when the task runs: building every house's list here took
+                            -- 196 ms in one tick at wonderland; it draws no random numbers, so the result is the same)
+                            local function makeCands()
+                                local cands = {}
+                                local gLo = line.closed and 0 or math.ceil(END_MARGIN / HOUSE_STEP)
+                                local gHi = line.closed and (math.floor(len / HOUSE_STEP) - 1) or math.floor((len - END_MARGIN) / HOUSE_STEP)
+                                local g0 = math.floor((sc + ds) / HOUSE_STEP + 0.5)
+                                local grid = {}
+                                for g = gLo, gHi do grid[#grid + 1] = g end
+                                table.sort(grid, function(g1, g2)
+                                    local d1, d2 = math.abs(g1 - g0), math.abs(g2 - g0)
+                                    if line.closed then d1, d2 = math.min(d1, #grid - d1), math.min(d2, #grid - d2) end
+                                    if d1 ~= d2 then return d1 < d2 end
+                                    return g1 < g2
+                                end)
+                                for _, g in ipairs(grid) do
+                                    local dsG = g * HOUSE_STEP - sc
+                                    for di, depth in ipairs({ 200, 900, 1700 }) do
+                                        local x, y, mx, my = edgePoint(dsG, edge + HOUSE_EDGE + depth)
+                                        cands[#cands + 1] = { x = x, y = y, yaw = math.deg(math.atan(-my, -mx)), group = group(dsG),
+                                            key = string.format("%d:%d:%d:%d:%d", tr.sig, li, side, g, di) }
+                                    end
                                 end
+                                return cands
                             end
-                            tasks[#tasks + 1] = { kind = "house", look = look, r = r, rc = Decor.houseCore(look), cands = cands, group = group(ds), trail = tr }
+                            tasks[#tasks + 1] = { kind = "house", look = look, r = r, rc = Decor.houseCore(look), make = makeCands, group = group(ds), trail = tr }
                             plannedHouses = plannedHouses + 1
                         end
                     end
@@ -303,6 +312,7 @@ function P.runTasks(ctx, i, deadline)
             if os.clock() > deadline then break end
         else
         local first = (t.kind == "house")            -- houses: candidates are ordered by preference, first valid wins
+        if t.make then t.cands, t.make = t.make(), nil end
         t.ci = t.ci or 1
         while t.ci <= #t.cands do
             local c = t.cands[t.ci]
@@ -350,7 +360,7 @@ end
 
 -- Dresses up to #t.looks of the game's trees near (t.x, t.y): healthy evergreens, trunk off the trails, not too close
 -- to an already dressed tree; nearest to the spot first (trees at the edge of the forest, where they are seen).
-local TREE_GAP = 700            -- cm between the canopies of two dressed trees
+local TREE_GAP = 400            -- cm between the canopies of two dressed trees (0.1.1: 700)
 function P.runPick(ctx, t)
     local st = ctx.stats
     local z = S.height(t.x, t.y)

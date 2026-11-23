@@ -16,6 +16,7 @@ local W, L, S, P, SP, Decor, Config, Trees, ctx
 local SETTLE = 5             -- s after the resort is up before the first scan (the trail subsystem must answer too)
 local BUDGET = 0.004         -- s of work per tick for background jobs
 local BUDGET_FAST = 0.008    -- s of work per tick for the first build after a load and for commands
+local snowNext, snowKeys, snowI, snowDirty = 0, {}, 1, {}     -- snow watch (below)
 
 function MG.init(c)
     ctx = c
@@ -23,6 +24,7 @@ function MG.init(c)
     W.onMapChange(function()
         MG.state = "waiting"
         MG.job = nil
+        snowKeys, snowI, snowDirty = {}, 1, {}
         MG.placements = {}
         MG.info = {}
         MG.lastFp = nil
@@ -34,6 +36,10 @@ end
 local function cfg() return ctx.cfg end
 local function cachePath(seed) return ctx.modDir .. "/Cache/resort_" .. tostring(seed) .. ".txt" end
 
+-- At most GROUP_MAX decorations per mesh actor: a group's geometry is built in Lua in one tick. Lab 2026-11-22: with
+-- the denser 0.1.2 levels, festive groups reached 55 decorations (97k vertices, ticks up to 221 ms); bigger groups
+-- are split in a fixed order (stable keys, so unchanged parts are kept on updates).
+local GROUP_MAX = 12
 local function groupLists(list)
     local g = {}
     for _, o in ipairs(list) do
@@ -41,7 +47,20 @@ local function groupLists(list)
         if not l then l = {} g[o.group] = l end
         l[#l + 1] = o
     end
-    return g
+    local out = {}
+    for k, l in pairs(g) do
+        if #l <= GROUP_MAX then out[k] = l
+        else
+            table.sort(l, function(a, b) if a.x ~= b.x then return a.x < b.x end return a.y < b.y end)
+            local n = math.ceil(#l / GROUP_MAX)
+            for i = 1, n do
+                local part = {}
+                for j = math.floor((i - 1) * #l / n) + 1, math.floor(i * #l / n) do part[#part + 1] = l[j] end
+                out[k .. "." .. i] = part
+            end
+        end
+    end
+    return out
 end
 
 -- ------------------------------------------------------------------ job steps
@@ -181,9 +200,12 @@ function steps.build(j, deadline)
         j.keyI = j.keyI + 1
         local list = j.groups[k]
         local g = SP.groups[k]
-        if g and not g.building and W.ok(g.actor) and g.sig == SP.listSig(list) and not j.opts.force then
+        if g and not g.building and W.ok(g.actor) and g.sig == SP.listSig(list) and not j.opts.force
+            and not (j.opts.rebuild and j.opts.rebuild[k]) then
             j.kept = j.kept + 1
         else
+            -- the snow under the group first, a few reads per tick
+            if not SP.snowPrefetch(list, deadline) then j.keyI = j.keyI - 1 return "build" end
             local job, e = SP.beginGroup(k, list)
             if job then j.cur = job
             elseif e then
@@ -205,6 +227,7 @@ end
 
 function MG.start(opts)
     opts = opts or {}
+    S.snowForget()                      -- snow falls and melts: read it again for whatever gets built
     MG.job = { opts = opts, step = "scan", info = { reason = opts.reason }, t0 = os.clock() }
     MG.info = MG.job.info
     MG.state = "working"
@@ -234,6 +257,39 @@ local function runJob()
     end
 end
 
+-- ------------------------------------------------------------------ snow watch
+-- While live, one group's snow is read again every SNOW_EVERY seconds (round robin; one ~1 ms read). A group whose
+-- snow rose or fell by more than SNOW_HOUSE (with a house) / SNOW_TREE cm since it was built is rebuilt, so houses
+-- are not buried again by a storm and do not float on their base after a thaw.
+local SNOW_EVERY, SNOW_HOUSE, SNOW_TREE = 2, 40, 70
+local function snowWatch()
+    if os.clock() < snowNext then return end
+    snowNext = os.clock() + SNOW_EVERY
+    if snowI > #snowKeys then
+        snowKeys, snowI = {}, 1
+        for k, g in pairs(SP.groups) do if g.snow then snowKeys[#snowKeys + 1] = k end end
+        table.sort(snowKeys)
+        if next(snowDirty) and not MG.job then
+            local n = 0
+            for _ in pairs(snowDirty) do n = n + 1 end
+            L.info("manager", "snow depth changed at %d group(s): rebuilding them", n)
+            MG.start({ reason = "snow depth changed", background = true, rebuild = snowDirty })
+            snowDirty = {}
+        end
+        return
+    end
+    local k = snowKeys[snowI]
+    snowI = snowI + 1
+    local g = SP.groups[k]
+    local w = g and not g.building and g.snow
+    if not w then return end
+    local d = S.snowDepth(w.x, w.y, "fresh")
+    if math.abs(d - w.d) > (w.house and SNOW_HOUSE or SNOW_TREE) then
+        L.debug("manager", "group %s: snow %.0f cm, was %.0f when built", k, d, w.d)
+        snowDirty[k] = true
+    end
+end
+
 -- ------------------------------------------------------------------ per tick
 local nextCheck = 0
 function MG.tick()
@@ -253,6 +309,7 @@ function MG.tick()
         nextCheck = os.clock() + c.update_interval_seconds
     end
     if MG.state == "working" then runJob() return end
+    if MG.state == "live" and ctx.active then snowWatch() end
     if MG.state == "live" and ctx.active and c.auto_update and os.clock() >= nextCheck then
         nextCheck = os.clock() + c.update_interval_seconds
         local t0 = os.clock()
